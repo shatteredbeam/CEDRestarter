@@ -7,20 +7,23 @@ using System.Threading.Tasks;
 using WindowsInput;
 using System.Threading;
 using System.Diagnostics;
+using System.Threading;
 
 namespace CEDRestarter
 {
     class Program
     {
+        //Declare Namespace vars
+        static bool cancelSchedule = false;
         static IntPtr hWnd = ConanWindow();
         static InputSimulator s = new InputSimulator();
-
         static Timetrigger trgmi;
         static Timetrigger trgmo;
         static Timetrigger trgno;
         static Timetrigger trgev;
-        static bool cancelSchedule = false;
 
+
+        //Prog Main
         static void Main(string[] args)
         {
             //Set Scheduling Triggers...
@@ -32,9 +35,9 @@ namespace CEDRestarter
 
             //Startup
             ConsoleHeader();
-
             hWnd = ConanWindow();
 
+            //Check for initial server instance on startup
             if (hWnd == IntPtr.Zero)
             {
                 Console.WriteLine("[Initialization] No Existing Server instance found.  Starting Server in 10 seconds.");
@@ -45,8 +48,8 @@ namespace CEDRestarter
 
             }
 
+            //Check again after start, or use existing
             hWnd = ConanWindow();
-
             if (hWnd != IntPtr.Zero)
             {
                 Console.WriteLine("[Initialization] Server found, PID: " + hWnd.ToString());
@@ -58,7 +61,23 @@ namespace CEDRestarter
                 cancelSchedule = true;
             }
 
-            Console.Read();
+            //Main heartbeat loop
+            while (true)
+            {
+                //Sleep this while loop for a full minute, between checks.
+                Thread.Sleep(60000);
+
+                hWnd = ConanWindow();
+                if (hWnd == IntPtr.Zero)
+                {
+                    Console.WriteLine("[Heartbeat] SERVER NOT FOUND - RESTARTING");
+                    RunCEDStart();
+                } else
+                {
+                    Console.WriteLine("[Heartbeat] Server Online at " + DateTime.Now);
+                }
+            }
+
 
         }
 
@@ -81,12 +100,13 @@ namespace CEDRestarter
         //TODO: Add these values to config file, so they're not hardcoded.
         static void SetScheduler()
         {
-            trgmi = new Timetrigger(19, 35, 0); //Trigger at Midnight Server time
+            trgmi = new Timetrigger(00, 00, 0); //Trigger at Midnight Server time
             trgmo = new Timetrigger(6, 0, 0);  //Trigger at 6 AM Server Time
             trgno = new Timetrigger(12, 0, 0); //Trigger at Noon Server Time
             trgev = new Timetrigger(18, 0, 0); //Trigger at 6 PM Server Time
         }
 
+        //Method to restart server, auto calls SendShutdown() and then RunCEDRestart();
         static void RestartServer()
         {
             hWnd = ConanWindow();
@@ -110,9 +130,7 @@ namespace CEDRestarter
             RunCEDStart();
 
             //Check again to make sure it closed, if not Error and stop the scheduling
-
             hWnd = ConanWindow();
-
             if (hWnd == IntPtr.Zero)
             {
                 Console.WriteLine("[Restart] Server Shutdown Completed.");
@@ -126,18 +144,22 @@ namespace CEDRestarter
 
         }
 
+        //Send Shutdown Keystrokes (Ctrl + C)
         static void SendShutdown()
         {
             SetForegroundWindow(hWnd);
             s.Keyboard.ModifiedKeyStroke(WindowsInput.Native.VirtualKeyCode.LCONTROL, WindowsInput.Native.VirtualKeyCode.VK_C);
         }
 
+        //Run a fresh server instance
         static void RunCEDStart()
         {
-            var ProcessInfo = new ProcessStartInfo("cmd.exe", "/c " + "E:\\conanded\\ConanSandboxServer.exe -log");
+            var ProcessInfo = new ProcessStartInfo("cmd.exe", "/c " + "ConanSandboxServer.exe -log -Multihome=66.85.14.7");
+            //var ProcessInfo = new ProcessStartInfo("cmd.exe", "/c " + "E:\\conanded\\ConanSandboxServer.exe -log -Multihome=66.85.14.7");
 
             ProcessInfo.CreateNoWindow = true;
-            ProcessInfo.WorkingDirectory = "E:\\conanded";
+            ProcessInfo.WorkingDirectory = "D:\\CONAN1\\";
+            //ProcessInfo.WorkingDirectory = "E:\\conanded\\";
             ProcessInfo.UseShellExecute = false;
 
             var process = Process.Start(ProcessInfo);
