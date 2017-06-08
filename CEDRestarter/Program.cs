@@ -32,32 +32,42 @@ namespace CEDRestarter
 
             //Startup
             ConsoleHeader();
-            Console.WriteLine("Seaching for Existing Conan Server...");
 
             hWnd = ConanWindow();
 
             if (hWnd == IntPtr.Zero)
             {
-                Console.WriteLine("No Existing Server instance found.  Running 'CEDStart.bat' in 5 seconds");
+                Console.WriteLine("[Initialization] No Existing Server instance found.  Starting Server in 10 seconds.");
+                Thread.Sleep(10000);
+                Console.WriteLine("[Initialization] Starting Server...");
+                RunCEDStart();
+                Thread.Sleep(5000);
+
+            }
+
+            hWnd = ConanWindow();
+
+            if (hWnd != IntPtr.Zero)
+            {
+                Console.WriteLine("[Initialization] Server found, PID: " + hWnd.ToString());
+                Console.WriteLine("[Initialization] Server Start Complete.");
             }
             else
             {
-                Console.WriteLine("[Restart] Unable to Shut down Server.  Schedule halted.");
+                Console.WriteLine("[Initialzation] Server could not be started.  Schedule Halted.");
                 cancelSchedule = true;
             }
 
-
-
-
-
+            Console.Read();
 
         }
 
         //Console Housekeeping
         static void ConsoleHeader()
         {
-            Console.Title = "CED Restarter";
-            Console.WriteLine("=====Conan Exiles Server Reboot Utility v1.0 by Anorak=====");
+            Console.Title = "CED Restarter v1.1 by Anorak";
+            Console.WindowWidth = 100;
+            Console.WindowHeight = 20;
         }
 
         //Assign a method specifically for the Conan Exiles Server Window
@@ -71,7 +81,7 @@ namespace CEDRestarter
         //TODO: Add these values to config file, so they're not hardcoded.
         static void SetScheduler()
         {
-            trgmi = new Timetrigger(0, 0, 0); //Trigger at Midnight Server time
+            trgmi = new Timetrigger(19, 35, 0); //Trigger at Midnight Server time
             trgmo = new Timetrigger(6, 0, 0);  //Trigger at 6 AM Server Time
             trgno = new Timetrigger(12, 0, 0); //Trigger at Noon Server Time
             trgev = new Timetrigger(18, 0, 0); //Trigger at 6 PM Server Time
@@ -97,6 +107,8 @@ namespace CEDRestarter
             Console.WriteLine("[Restart] Shutdown Sent.  Waiting 30 seconds for shutdown.");
             Thread.Sleep(30000);
 
+            RunCEDStart();
+
             //Check again to make sure it closed, if not Error and stop the scheduling
 
             hWnd = ConanWindow();
@@ -104,6 +116,7 @@ namespace CEDRestarter
             if (hWnd == IntPtr.Zero)
             {
                 Console.WriteLine("[Restart] Server Shutdown Completed.");
+                Console.WriteLine("[Restart] Starting server instance ConanSandBoxServer.exe -log'");
             } else
             {
                 Console.WriteLine("[Restart] Unable to Shut down Server.  Schedule halted.");
@@ -117,6 +130,18 @@ namespace CEDRestarter
         {
             SetForegroundWindow(hWnd);
             s.Keyboard.ModifiedKeyStroke(WindowsInput.Native.VirtualKeyCode.LCONTROL, WindowsInput.Native.VirtualKeyCode.VK_C);
+        }
+
+        static void RunCEDStart()
+        {
+            var ProcessInfo = new ProcessStartInfo("cmd.exe", "/c " + "E:\\conanded\\ConanSandboxServer.exe -log");
+
+            ProcessInfo.CreateNoWindow = true;
+            ProcessInfo.WorkingDirectory = "E:\\conanded";
+            ProcessInfo.UseShellExecute = false;
+
+            var process = Process.Start(ProcessInfo);
+
         }
 
         // Get a handle to a window.
