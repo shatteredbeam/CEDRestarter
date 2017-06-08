@@ -19,10 +19,10 @@ namespace CEDRestarter
         static Timetrigger trgmo;
         static Timetrigger trgno;
         static Timetrigger trgev;
+        static bool cancelSchedule = false;
 
         static void Main(string[] args)
         {
-
             //Set Scheduling Triggers...
             SetScheduler();
             trgmi.OnTimeTriggered += trgMidnight;
@@ -30,36 +30,24 @@ namespace CEDRestarter
             trgno.OnTimeTriggered += trgNoon;
             trgev.OnTimeTriggered += trgEvening;
 
+            //Startup
+            ConsoleHeader();
+            Console.WriteLine("Seaching for Existing Conan Server...");
 
-
-            if (hWnd == IntPtr.Zero)
-            {
-                Console.WriteLine("Unable to find window!");
-                Thread.Sleep(1000);
-                return;
-            }
-
-            Console.WriteLine("Conan Server Found running as PID " + hWnd.ToString());
-            Console.WriteLine("Trying to close it in 5 seconds...");
-            Thread.Sleep(5000);
-            SetForegroundWindow(hWnd);
-            s.Keyboard.ModifiedKeyStroke(WindowsInput.Native.VirtualKeyCode.LCONTROL, WindowsInput.Native.VirtualKeyCode.VK_C);
-            Console.WriteLine("Close Signal sent...waiting 15 seconds for clean exit...");
-            Thread.Sleep(15000);
-
-            //Check to see if it really closed down
-            hWnd = FindWindow(null, "Conan Exiles - press Ctrl+C to shutdown");
+            hWnd = ConanWindow();
 
             if (hWnd == IntPtr.Zero)
             {
-                Console.WriteLine("Conan has been closed.");
+                Console.WriteLine("No Existing Server instance found.  Running 'CEDStart.bat' in 5 seconds");
             }
             else
             {
-                Console.WriteLine("Conan is still running. Make sure you're running this as Administrator on Windows 2008+ or Windows 8/10.");
+                Console.WriteLine("[Restart] Unable to Shut down Server.  Schedule halted.");
+                cancelSchedule = true;
             }
 
-            Console.Read();
+
+
 
 
 
@@ -68,6 +56,7 @@ namespace CEDRestarter
         //Console Housekeeping
         static void ConsoleHeader()
         {
+            Console.Title = "CED Restarter";
             Console.WriteLine("=====Conan Exiles Server Reboot Utility v1.0 by Anorak=====");
         }
 
@@ -88,6 +77,48 @@ namespace CEDRestarter
             trgev = new Timetrigger(18, 0, 0); //Trigger at 6 PM Server Time
         }
 
+        static void RestartServer()
+        {
+            hWnd = ConanWindow();
+
+            if (hWnd == IntPtr.Zero)
+            {
+                Console.WriteLine("[Restart] Unable to find window!");
+                Thread.Sleep(1000);
+                return;
+            }
+
+            Console.WriteLine("[Restart] Found PID: " + hWnd.ToString());
+            Console.WriteLine("[Restart] Closing " + hWnd.ToString() + " in 5 seconds.");
+
+            Thread.Sleep(5000);
+            SendShutdown();
+
+            Console.WriteLine("[Restart] Shutdown Sent.  Waiting 30 seconds for shutdown.");
+            Thread.Sleep(30000);
+
+            //Check again to make sure it closed, if not Error and stop the scheduling
+
+            hWnd = ConanWindow();
+
+            if (hWnd == IntPtr.Zero)
+            {
+                Console.WriteLine("[Restart] Server Shutdown Completed.");
+            } else
+            {
+                Console.WriteLine("[Restart] Unable to Shut down Server.  Schedule halted.");
+                cancelSchedule = true;
+            }
+
+
+        }
+
+        static void SendShutdown()
+        {
+            SetForegroundWindow(hWnd);
+            s.Keyboard.ModifiedKeyStroke(WindowsInput.Native.VirtualKeyCode.LCONTROL, WindowsInput.Native.VirtualKeyCode.VK_C);
+        }
+
         // Get a handle to a window.
         [DllImport("USER32.DLL", CharSet = CharSet.Unicode)]
         static extern IntPtr FindWindow(string lpClassName,
@@ -97,7 +128,42 @@ namespace CEDRestarter
         [DllImport("USER32.DLL")]
         static extern bool SetForegroundWindow(IntPtr hWnd);
 
+        //Trigger Events
+        static void trgMidnight()
+        {
+            if (cancelSchedule == true) return;
 
+            Console.WriteLine("Midnight Restart Started. (Next Restart at 06:00)");
+            RestartServer();
+            SetScheduler();
+        }
+
+        static void trgMorning()
+        {
+            if (cancelSchedule == true) return;
+
+            Console.WriteLine("Morning Restart Started. (Next Restart at 12:00)");
+            RestartServer();
+            SetScheduler();
+        }
+
+        static void trgNoon()
+        {
+            if (cancelSchedule == true) return;
+
+            Console.WriteLine("Noon Restart Started. (Next Restart at 18:00)");
+            RestartServer();
+            SetScheduler();
+        }
+
+        static void trgEvening()
+        {
+            if (cancelSchedule == true) return;
+
+            Console.WriteLine("Evening Restart Started. (Next Restart at 00:00)");
+            RestartServer();
+            SetScheduler();
+        }
     }
 
 
